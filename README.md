@@ -1,6 +1,6 @@
 # bufferfly
 渗透测试资产处理框架，对渗透测试前的信息搜集到的大批量资产进行处理的框架
-
+![bufferfly](https://github.com/dropwiki/bufferfly/blob/master/bufferfly.png)
 # 手册
 渗透测试资产处理框架，对渗透测试前的信息搜集到的大批量资产进行处理的框架，可插件扩展 
 python3 bufferfly.py -t 20 -g urls.txt 
