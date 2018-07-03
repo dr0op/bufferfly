@@ -21,9 +21,11 @@ python3 bufferfly.py -t 20 -g urls.txt
 
 -m   --mvdups   单文件去重
 
--    --mvdup2  双文件去重，去除文件1和文件2中共同的部分
+--mvdup2        双文件去重，去除文件1和文件2中共同的部分
   
 # TODO
 1. EXCEL支持，EXCEL处理导入导出
+
 2. 插件化支持，使其可扩展
+
 3. 在线化支持，提供网页可在线处理
