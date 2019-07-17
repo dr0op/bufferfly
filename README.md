@@ -20,6 +20,7 @@
 ![bufferfly](bufferflic.png)
 
 # 使用
+```
 攻防演习/渗透测试资产处理小工具 
 usage: bufferflic.py [-h] [-t] [-n] [--mvdups] [--mvdups2]
 
@@ -31,6 +32,8 @@ optional arguments:
   -n , --name     要获取标题的文件
   --mvdups        单文本去重
   --mvdups2       去除file1中含有file2内容的部分，然后将两个文件合并
+
+```
 
 # DEFF
 
