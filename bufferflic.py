@@ -1,6 +1,6 @@
 #!/usr/bin/evn python3
 #_*_ coding:utf-8 _*-
-#攻防演习信息搜集资产处理框架v1.2.1
+#攻防演习信息搜集资产处理框架v1.2
 #author Ra1ndr0op
 
 import requests
@@ -35,12 +35,11 @@ banner = '''
                                     /____/      v1.2.1 
 1.高速资产存活检测，获取标题
 2.常见Web端口访问测试/获取标题  lxml方式速度较快
-3.资产去重
+3.资产去重：单文件去重，双文件去重
 4.随机UA
-5.C段探测
+5.C段端口访问测试/获取标题
 6.识别C段IP
 7.shiro识别
-8.简单中间件识别
 
 适用用于外网资产梳理
 
@@ -343,8 +342,8 @@ def main():
     target = args.file
     thread_nums = args.thread
     movdup = args.mvdups
-    mvdups2 = args.mvdups2
-    ip = args.ip
+#    mvdups2 = args.mvdups2
+    ip = args.c
     print(target)
 
     if '' != target:
