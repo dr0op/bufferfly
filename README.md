@@ -62,8 +62,8 @@ pip3 install -r requirements.txt
 
 # TODO
 
-​	1.在不发送更多请求的情况下模糊识别weblogic/jboss/jenkins/zabbix/activeMQ/solr/gitlab/spring等
-​	2.常见端口扫描(22/445/3389/3306/6379/1521等常见端口  与masscan、nmap结合)
+	1. 在不发送更多请求的情况下模糊识别weblogic/jboss/jenkins/zabbix/activeMQ/solr/gitlab/spring等
+ 	2. 常见端口扫描(22/445/3389/3306/6379/1521等常见端口  与masscan、nmap结合)
 
 # help
 
