@@ -1,21 +1,30 @@
 #!/usr/bin/evn python3
 #_*_ coding:utf-8 _*-
-#攻防演习信息搜集资产处理框架v1
+#攻防演习信息搜集资产处理框架v1.2.1
 #author Ra1ndr0op
 
 import requests
 import re
-import getopt,sys
+import sys
 import threading
 from queue import Queue
 import argparse
 from lxml import etree
 import random
+from collections import Counter
+import socket
+from urllib.parse import urlparse
+
 
 active_url_list = []
 threadList = []
+CsubThreadList = []
 urlQueue = Queue(1000*100)
-port = list(range(80,90))+list(range(8080,8091))+[7001,8000,8001,8032,8023,9200,2375,5904,6066,7077]
+port = list(range(80,90))+list(range(8080,8091))+list(range(8000,8010))+[7001,8032,8023,9200,2375,5904,6066,7077,8161]
+URIList = []
+IPCsubList = []
+lineQueue = Queue(1000*100)
+
 
 banner = '''
     __          ________          ______     
@@ -23,12 +32,22 @@ banner = '''
   / __ \/ / / / /_/ /_/ _ \/ ___/ /_/ / / / /
  / /_/ / /_/ / __/ __/  __/ /  / __/ / /_/ / 
 /_.___/\__,_/_/ /_/  \___/_/  /_/ /_/\__, /  
-                                    /____/   
+                                    /____/      v1.2.1 
 1.高速资产存活检测，获取标题
 2.常见Web端口访问测试/获取标题  lxml方式速度较快
-2.资产去重：单文件去重，双文件去重
-4.多线程
-5.随机UA
+3.资产去重
+4.随机UA
+5.C段探测
+6.识别C段IP
+7.shiro识别
+8.简单中间件识别
+
+适用用于外网资产梳理
+
+TODO:
+1.在不发送更多请求的情况下模糊识别weblogic/jboss/jenkins/zabbix/activeMQ/solr/gitlab/spring等
+2.常见端口扫描(22/445/3389/3306/6379/1521等常见端口  与masscan、nmap结合)
+
 '''
 
 
@@ -40,6 +59,7 @@ def getTitle(url):
     if "http://" or "https://" not in url:
         url = "http://"+url
     try:
+        sys.stdout.write("\r Going to access {0} ...".format(url))
         res = requests.get(url,headers=headers,timeout=2)
     except:
         return
@@ -70,11 +90,12 @@ def getTitle(url):
 # 获取url请求title，返回title值   利用lxml方式获取title信息
 
 def getTitle2(url):
-    headers={'User-Agent':get_user_agent(),}
+    headers={'User-Agent':get_user_agent(),'Cookie':'rememberMe=b69375edcb2b3c5084c02bd9690b6625',}
 
-    if "http://" or "https://" not in url:
+    if "http://" not in url:
         url = "http://"+url
     try:
+        sys.stdout.write("\r[*]Recording to access {0} ...".format(url))
         res = requests.get(url,headers=headers,timeout=2)
     except:
         return
@@ -103,8 +124,11 @@ def getTitle2(url):
                 ctext ='Null'
         except:
             title="Null"
-        print(url+split+str(code)+split+server+split+title+split+ctext)
-        return str(url)+split+str(code)+split+server+split+title
+        result = '{}[+]{}{}{}{}{}{}'.format(Color.OKGREEN,url.ljust(36),str(code).ljust(10),server.ljust(20),title[:20].ljust(30),''.join(ctext.split()).ljust(20),Color.ENDC)
+        print('\r{0}'.format(result))
+        #print(url+split+str(code)+split+server+split+title+split+ctext)
+        #return str(url)+split+str(code)+split+server+split+title
+        return result
     else:
         return
 
@@ -170,7 +194,7 @@ def get_url_server(resp):
             header_server = resp.headers[k].upper()
         return header_server
     except:
-        return 'Null'
+        return 'Unkonw'
 
 
 
@@ -212,12 +236,19 @@ def get_url_servers(resp):
                   short_server = '360wzws'  
                 elif re.search('cdn'.upper(), header_server):
                   short_server = 'CDN'          
+                else:
+                    short_server = get_url_server(resp)
+            if k.upper() == 'SET-COOKIE':
+                header_cookie = resp.headers[k]
+                if 'rememberMe=deleteMe' in header_cookie:
+                    short_server= 'shiro'
         return short_server
     except:
         return "Unkonw"
 
 
 # 获取中间部分内容信息
+# TODO: jenkins/weblogic/zabbix/shiro/elasticsearch/gitlab/shiro
 def get_context(html):
     context = etree.HTML(html)
     for bad in context.xpath(".//script"):
@@ -227,7 +258,48 @@ def get_context(html):
     content = context.xpath('string(.)').replace(" ","").replace("\n","")
     n = int(len(content)/2)
     ct =  content[n-20:n+20]
-    return ct.strip()
+    return ct.strip()[:25]
+
+# 提取url中的域名或IP
+def url2Domain(line):
+    if ("http://" in line) or ("https://" in line):
+        return urlparse(line)[1]
+    else:
+        return line
+
+
+# 域名转为ip
+def Domain2Ip(host):
+    try:
+        ip=socket.getaddrinfo(host, None)[0][4][0]
+        return ip
+    except Exception as e:
+        pass
+
+# # C段识别
+# def FindCsub(urls):
+#     ipc = []
+#     for url in urls:
+#         ip=Domain2Ip(url2Domain(url))
+#         if None != ip:
+#             x =ip.rfind('.')
+#             ip=ip[:x+1]+"0/24"
+#             ipc.append(ip)
+#     for value,count in Counter(ipc).most_common():
+#         print(value, "-----------------",count)
+#     return Counter(ipc).most_common()
+
+
+# 将url转为C段ip地址表示
+def Domain2Csub2(url):
+    sys.stdout.write("\r[*]Recording to desolve {0} ...".format(url))
+    ip=Domain2Ip(url2Domain(url))
+    if '' != ip and None !=ip:
+        x =ip.rfind('.')
+        ip=ip[:x+1]+"0/24"
+        return ip
+
+
 
 class Color:
     HEADER = '\033[95m'
@@ -244,33 +316,80 @@ class MyThread(threading.Thread):
     def __init__(self,q):
         threading.Thread.__init__(self)
         self.q = q
+
     def run(self):
         while not self.q.empty():
             getTitle2(self.q.get())
-        
+
+class FindCsubThread(threading.Thread):
+    def __init__(self,q):
+        threading.Thread.__init__(self)
+        self.q = q
+    def run(self):
+        while not self.q.empty():
+            IPCsubList.append(Domain2Csub2(self.q.get()))
+
 
 def main():
     print(Color.OKYELLOW+banner+Color.ENDC)
-    parser = argparse.ArgumentParser(description='攻防演习/渗透测试资产处理框架，对攻防演习前搜集到的大量资产信息进行处理的小工具')
+    parser = argparse.ArgumentParser(description='攻防资产处理工具，用于简单处理筛选攻防前的有价值资产')
     parser.add_argument('-t','--thread',metavar='',type=int,default='10',help='线程参数')
-    parser.add_argument('-f','--file',metavar='',default='',help='要获取标题的文件')
-    parser.add_argument('--mvdups',metavar='',default='',help='单文本去重')
-    parser.add_argument('--mvdups2',metavar='',default='',help='去除file1中含有file2内容的部分，然后将两个文件合并')
+    parser.add_argument('-f','--file',metavar='',default='',help='从文件读取')
+    parser.add_argument('--mvdups',metavar='',default='',help='文本去重')
+#    parser.add_argument('--mvdups2',metavar='',default='',help='去除file1中含有file2内容的部分，然后将两个文件合并')
+    parser.add_argument('-c','--c',metavar='',default='',help='C段探测')
     args = parser.parse_args()
 
     target = args.file
     thread_nums = args.thread
     movdup = args.mvdups
     mvdups2 = args.mvdups2
+    ip = args.ip
     print(target)
 
     if '' != target:
         with open(target,'r') as f:
             for line in f.readlines():
+                lineQueue.put(line.strip())
                 for p in port:
                     #print(line.strip()+":"+str(p))
+
                     urlQueue.put(line.strip()+":"+str(p))
-        print("Queue ok !")
+        print("Queue OK! !")
+        print("thread nums:",thread_nums,"!")
+        print("识别C段IP中...")
+
+        for j in range(thread_nums):
+            CsubThreadList.append(FindCsubThread(lineQueue))
+        for k in CsubThreadList:
+            k.start()
+        for m in CsubThreadList:
+            m.join()
+        if lineQueue.empty():
+            for value,count in Counter(IPCsubList).most_common():
+                if count >= 5 and None != value:
+                    result = '{}[+]{}{}'.format(Color.OKYELLOW,value.ljust(50),count,Color.ENDC)
+                    print('\r{0}'.format(result))
+                    #print(value,"                                               ",count)
+
+
+        for i in range(thread_nums):
+            threadList.append(MyThread(urlQueue))
+        for t in threadList:
+            t.start()
+        for l in threadList:
+            l.join()
+
+    if '' != movdup:
+        MovDups(movdup)
+    if '' !=ip:
+        #ipl = ip.split('.')
+        for i in range(1,254):
+            x =ip.rfind('.')
+            ip=ip[:x+1]+str(i)
+            for p in port:
+                urlQueue.put(ip.strip()+":"+str(p))
+        print("Queue OK! !")
         print("thread nums:",thread_nums,"!")
         for i in range(thread_nums):
             threadList.append(MyThread(urlQueue))
@@ -278,12 +397,6 @@ def main():
             t.start()
         for l in threadList:
             l.join()
-    if '' != movdup:
-        MovDups(movdup)
-    if '' != mvdups2:
-        pass
-
-
 if __name__ == '__main__':
     main()
     
