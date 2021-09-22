@@ -7,19 +7,29 @@ import requests
 import re
 import sys
 import threading
-from queue import Queue
 import argparse
 from lxml import etree
 import random
 from collections import Counter
 import socket
-from urllib.parse import urlparse
+
+if sys.version > '3':
+    import queue as Queue
+    from urllib.parse import urlparse
+else:
+    import Queue
+    import urlparse
 
 
-active_url_list = []
+
+URIList = []
+IPCsubList = []
 threadList = []
 CsubThreadList = []
-urlQueue = Queue(1000*100)
+active_url_list = []
+
+urlQueue = Queue.Queue(1000*100)
+lineQueue = Queue.Queue(1000*100)
 port = list(range(80,90))+list(range(8080,8091))+list(range(8000,8010))+[7001,8032,8023,9200,2375,5904,6066,7077,8161]
 URIList = []
 IPCsubList = []
