@@ -33,7 +33,6 @@ lineQueue = Queue.Queue(1000*100)
 port = list(range(80,90))+list(range(8080,8091))+list(range(8000,8010))+[7001,8032,8023,9200,2375,5904,6066,7077,8161]
 URIList = []
 IPCsubList = []
-lineQueue = Queue(1000*100)
 
 
 banner = '''
